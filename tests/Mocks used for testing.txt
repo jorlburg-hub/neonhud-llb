@@ -1,0 +1,1 @@
+Use mock for testing when final version wasn't compiled in a unity test scene first before importing into game. 
