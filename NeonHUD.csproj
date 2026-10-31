@@ -1,0 +1,89 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>NeonHUD</AssemblyName>
+    <RootNamespace>NeonHud</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <Version>1.6.0</Version>
+    <DebugType>none</DebugType>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <NoWarn>$(NoWarn);1701;1702;MSB3258</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('C:\Program Files (x86)\Steam\steamapps\common\LLBlaze')">C:\Program Files (x86)\Steam\steamapps\common\LLBlaze</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('D:\SteamLibrary\steamapps\common\LLBlaze')">D:\SteamLibrary\steamapps\common\LLBlaze</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('C:\Program Files (x86)\Steam\steamapps\common\Lethal League Blaze')">C:\Program Files (x86)\Steam\steamapps\common\Lethal League Blaze</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' And Exists('D:\SteamLibrary\steamapps\common\Lethal League Blaze')">D:\SteamLibrary\steamapps\common\Lethal League Blaze</GameDir>
+
+    <TmmProfile Condition="'$(TmmProfile)' == ''">Default</TmmProfile>
+    <TmmBepInEx>$(APPDATA)\Thunderstore Mod Manager\DataFolder\LethalLeagueBlaze\profiles\$(TmmProfile)\BepInEx</TmmBepInEx>
+    <BepInExDir Condition="'$(BepInExDir)' == '' And Exists('$(TmmBepInEx)\core\BepInEx.dll')">$(TmmBepInEx)</BepInExDir>
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(GameDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tools\**;tests\**" />
+    <None Remove="tools\**;tests\**" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all"
+                      Condition="'$(TargetFrameworkRootPath)' == ''" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GameReference Include="$(BepInExDir)\core\BepInEx.dll" />
+    <GameReference Condition="'$(ManagedDir)' != ''" Include="$(ManagedDir)\UnityEngine*.dll" />
+    <GameReference Condition="'$(ManagedDir)' == '' And '$(GameDir)' != ''" Include="$(GameDir)\*_Data\Managed\UnityEngine*.dll" />
+  </ItemGroup>
+
+  <Target Name="CheckPaths" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_UnityRef Include="@(GameReference)" Condition="'%(Filename)' == 'UnityEngine'" />
+    </ItemGroup>
+    <Error Condition="'$(GameDir)' == ''"
+           Text="Couldn't find Lethal League Blaze. In Steam: right-click the game > Manage > Browse local files, then build with -p:GameDir=&quot;that folder&quot; (or set GameDir in NeonHUD.csproj)." />
+    <Error Condition="'@(_UnityRef)' == ''"
+           Text="No UnityEngine.dll under '$(GameDir)\*_Data\Managed'. Check GameDir, or set ManagedDir to the Managed folder directly." />
+    <Error Condition="!Exists('$(BepInExDir)\core\BepInEx.dll')"
+           Text="BepInEx.dll not found in '$(BepInExDir)\core'. If you use a Thunderstore profile other than Default, pass -p:TmmProfile=Name, or set BepInExDir directly." />
+  </Target>
+
+  <Target Name="AddGameReferences" AfterTargets="ResolveAssemblyReferences" BeforeTargets="FindReferenceAssembliesForReferences">
+    <ItemGroup>
+      <ReferencePath Include="@(GameReference->'%(FullPath)')" Private="false" CopyLocal="false" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="Exists('$(BepInExDir)\core\BepInEx.dll')">
+    <MakeDir Directories="$(BepInExDir)\plugins\NeonHUD" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins\NeonHUD" />
+    <Message Importance="high" Text="NeonHUD -> $(BepInExDir)\plugins\NeonHUD" />
+  </Target>
+
+  <PropertyGroup>
+    <ThunderstoreDir>$(MSBuildProjectDirectory)\thunderstore</ThunderstoreDir>
+    <ThunderstoreStage>$(MSBuildProjectDirectory)\obj\thunderstore</ThunderstoreStage>
+    <ThunderstoreZip>$(MSBuildProjectDirectory)\dist\NeonHUD-$(Version).zip</ThunderstoreZip>
+  </PropertyGroup>
+
+  <Target Name="ThunderstorePackage" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And Exists('$(ThunderstoreDir)\manifest.json')">
+    <PropertyGroup>
+      <_TsManifest>$([System.IO.File]::ReadAllText('$(ThunderstoreDir)\manifest.json'))</_TsManifest>
+      <_TsPlugin>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\src\Unity\Plugin.cs'))</_TsPlugin>
+    </PropertyGroup>
+    <Error Condition="'$(_TsManifest.Contains(`&quot;version_number&quot;: &quot;$(Version)&quot;`))' != 'True'"
+           Text="thunderstore\manifest.json: version_number must be &quot;$(Version)&quot;, the Version in NeonHUD.csproj." />
+    <Error Condition="'$(_TsPlugin.Contains(`Version = &quot;$(Version)&quot;`))' != 'True'"
+           Text="src\Unity\Plugin.cs: Version must be &quot;$(Version)&quot;, the Version in NeonHUD.csproj." />
+    <ItemGroup>
+      <_TsFile Include="$(ThunderstoreDir)\manifest.json;$(ThunderstoreDir)\icon.png;$(ThunderstoreDir)\README.md;$(ThunderstoreDir)\CHANGELOG.md;$(TargetPath)" />
+    </ItemGroup>
+    <Error Condition="!Exists('%(_TsFile.FullPath)')" Text="Missing for the Thunderstore package: %(_TsFile.FullPath)" />
+    <RemoveDir Directories="$(ThunderstoreStage)" />
+    <Copy SourceFiles="@(_TsFile)" DestinationFolder="$(ThunderstoreStage)" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\dist" />
+    <ZipDirectory SourceDirectory="$(ThunderstoreStage)" DestinationFile="$(ThunderstoreZip)" Overwrite="true" />
+    <Message Importance="high" Text="Thunderstore package -> $(ThunderstoreZip)" />
+  </Target>
+
+</Project>

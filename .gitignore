@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+tests/out/
+tools/Preview/bin/
+tools/Preview/obj/
+__pycache__/
+*.user
+.vs/
+.vscode/
+nuget.config
