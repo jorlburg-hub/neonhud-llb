@@ -1,9 +1,0 @@
-{
-  "name": "NeonHUD",
-  "version_number": "1.6.0",
-  "website_url": "",
-  "description": "Cyberpunk HUD: seven-segment ball speed, a frame-exact hitstun release meter, timer, now playing with live spectrum, player cards with HP threat and LETHAL warnings. Replaces the game's HUD.",
-  "dependencies": [
-    "BepInEx-BepInExPack_LLBlaze-5.4.1900"
-  ]
-}
